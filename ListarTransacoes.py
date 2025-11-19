@@ -4,8 +4,7 @@ from datetime import datetime
 
 def vizualizar(n, ws, wb):
 
-
-    #3 - LISTAR POR CATEGORIA
+#========================== Listar por categoria ============================
     if n == 3:
         categoria = input("Informe a categoria (ex: Alimentação, Moradia, Vestuário, Outros): ").strip().capitalize()  #deixar string e maisculo inicial
 
@@ -27,8 +26,8 @@ def vizualizar(n, ws, wb):
         return None
 
 
-#4- Listar periodo
-       if n == 4:
+#=========================== Listar por periodo ================================
+    if n == 4:
         print("Informe o intervalo de datas:")
         d1 = input("Data inicial (ex: 01/01/2025): ").strip()
         d2 = input("Data final   (ex: 31/01/2025): ").strip()
@@ -64,11 +63,11 @@ def vizualizar(n, ws, wb):
         return None
 
 
-#5- saldo por periodo
+#=============================== Saldo por periodo ========================================
     if n == 5:
         print("Informe o intervalo de datas:")
         d1 = input("Data inicial (ex: 01/01/2025): ").strip()
-        d2 = input("Data final   (ex: 31/01/2025): ").strip()
+        d2 = input("Data final (ex: 31/01/2025): ").strip()
 
     #separação
         try:
@@ -88,7 +87,7 @@ def vizualizar(n, ws, wb):
                     continue
                 (tid, tipo, cat, valor, data, desc) = row
 
-            #tentar acgar data
+            #tentar achar data
                 try:
                     data_convertida = datetime.strptime(data, "%d/%m/%Y")
                 except:
@@ -105,8 +104,8 @@ def vizualizar(n, ws, wb):
 
         print("\n========== SALDO DO PERÍODO ==========")
         print(f"Entradas: R${total_entradas}")
-        print(f"Saídas...: R${total_saidas}")
-        print(f"Saldo....: R${saldo}")
+        print(f"Saídas: R${total_saidas}")
+        print(f"Saldo: R${saldo}")
 
         return None
 
