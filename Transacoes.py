@@ -7,6 +7,8 @@ FNAME = "Gestao_Financeira.xlsx"
 MESES = ["Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
 CATEGORIAS = {"1":"Alimentação","2":"Moradia","3":"Vestuário","4":"Outros"}
 
+
+#=============================== ID ====================================
 def ID(wb):
     max_id = 0
     for ws in wb.worksheets:
@@ -24,8 +26,9 @@ def ID(wb):
                 continue
     return max_id + 1
 
+#================================= Transasções =================================
 def transacoes(n, ws, wb):
-    # 1 - ADICIONAR
+    #-------------------------- ADICIONAR -----------------------------
     if n == 1:
         print("-----------------------------------------------------------------------")
         data_str = input("Informe a data da transação (ex: 12/10 ou 12/10/2025): ").strip()
@@ -105,7 +108,7 @@ def transacoes(n, ws, wb):
         print(f"Transação adicionada com ID {tid} na planilha {ws_target.title}.")
         return None
 
-    # 2 - REMOVER por ID
+#======================= Remover transação =========================
     elif n == 2:
         id_in = input("Informe o ID da transação a remover (ou 'c' para cancelar): ").strip()
         if id_in.lower() == 'c' or id_in == "":
@@ -135,7 +138,7 @@ def transacoes(n, ws, wb):
         print("ID não encontrado.")
         return None
 
-    # 0 - Encerrar
+#======================== Encerrar ===========================
     elif n == 0:
         print("Encerrando...")
         return "quebra"
