@@ -28,15 +28,19 @@ def ID(wb):
 
 #================================= Transasções =================================
 def transacoes(n, ws, wb):
+    print(f"[DEBUG] transacoes() chamado com n={n}")
+
     #-------------------------- ADICIONAR -----------------------------
     if n == 1:
+        #--------------------------------------- DATA ------------------------------------------------
         print("-----------------------------------------------------------------------")
         data_str = input("Informe a data da transação (ex: 12/10 ou 12/10/2025): ").strip()
         if data_str == "":
             print("Data não pode ser vazia. Operação abortada.")
             return None
 
-        # TIPO
+
+        #-------------------------------------- TIPO -------------------------------------------
         try:
             tipo_in = int(input("Me informe qual foi o tipo de transação:\n1. Entrada \n2. Saída\n"))
         except ValueError:
@@ -50,7 +54,8 @@ def transacoes(n, ws, wb):
             print("Você deve digitar 1 ou 2. Operação abortada.")
             return None
 
-        # CATEGORIA
+
+        #------------------------------------ CATEGORIA -----------------------------------------
         categoria = input("Qual seria a categoria da transação:\n1- Alimentação\n2- Moradia\n3- Vestuário\n4- Outros\nEscolha (número ou nome): ").strip()
         if categoria == "":
             print("Categoria vazia. Operação abortada.")
@@ -65,7 +70,8 @@ def transacoes(n, ws, wb):
                 print("Categoria inválida. Operação abortada.")
                 return None
 
-        # VALOR
+
+        #------------------------------- VALOR ------------------------------------
         val_in = input("Informe o valor (use . como separador decimal): ").strip()
         try:
             valor = float(val_in)
@@ -73,13 +79,14 @@ def transacoes(n, ws, wb):
                 print("Valor deve ser positivo. Operação abortada.")
                 return None
         except ValueError:
-            print("Valor inválido. Operação abortada.")
+            print("Valor inválido. Operação nao concluída.")
             return None
 
         descricao = input("Descrição (opcional): ").strip()
 
-        # ESCOLHA DE PLANILHA
-        escolha = input("Deseja usar a planilha ativa (a) ou escolher outro mês (c)? Digite 'a' ou 'c': ").strip().lower()
+
+        #------------------------------- ESCOLHA DE PLANILHA ---------------------------------------
+        escolha = input("Deseja usar a planilha ativa (que seria janeiro) 'a', ou escolher outro mês 'c'? Digite 'a' ou 'c': ").strip().lower()
         if escolha == 'c':
             meses_full = ["Janeiro"] + MESES
             print("Escolha o mês (1-12):")
@@ -89,7 +96,7 @@ def transacoes(n, ws, wb):
             try:
                 sel = int(sel_in)
             except ValueError:
-                print("Entrada inválida. Operação abortada.")
+                print("Entrada inválida!")
                 return None
             if 1 <= sel <= 12:
                 sheet_name = meses_full[sel-1]
@@ -97,7 +104,7 @@ def transacoes(n, ws, wb):
                     wb.create_sheet(sheet_name)
                 ws_target = wb[sheet_name]
             else:
-                print("Número fora do intervalo. Operação abortada.")
+                print("Número fora das opções!")
                 return None
         else:
             ws_target = ws
@@ -110,6 +117,29 @@ def transacoes(n, ws, wb):
 
 #======================= Remover transação =========================
     elif n == 2:
+        # --- Lista todas as transações antes de pedir o ID ---
+        print("\n========== Lista de todas as transações ==========\n")
+        encontrou_algo = False
+        for wsx in wb.worksheets:
+            any_in_sheet = False
+            for row in wsx.iter_rows(min_row=2, values_only=True):
+                if not row:
+                    continue
+                # garante que a tupla tenha pelo menos 6 elementos
+                row = tuple(row) + (None,) * max(0, 6 - len(row))
+                tid, tipo, categoria, valor, data, desc = row
+                if tid is None:
+                    continue
+                if not any_in_sheet:
+                    print(f"--- Planilha: {wsx.title} ---")
+                    any_in_sheet = True
+                valor_str = f"R${valor}" if valor is not None else "R$0"
+                print(f"ID:{tid} | {tipo} | {categoria} | {valor_str} | {data} | {desc}")
+                encontrou_algo = True
+
+        if not encontrou_algo:
+            print("Nenhuma transação encontrada.\n")
+
         id_in = input("Informe o ID da transação a remover (ou 'c' para cancelar): ").strip()
         if id_in.lower() == 'c' or id_in == "":
             print("Operação cancelada.")
@@ -120,12 +150,27 @@ def transacoes(n, ws, wb):
             print("ID inválido.")
             return None
 
+
+        #Apos a seleção do ID, busca em qual planilha pertence e solicita confirmação para poder remover
+        # Apos a seleção do ID, busca em qual planilha pertence e solicita confirmação para poder remover
         for wsx in wb.worksheets:
-            for row_idx, cells in enumerate(wsx.iter_rows(min_row=2), start=2):
-                cell_id = cells[0].value
+            # usar values_only=True para trabalhar só com valores e evitar .value
+            for row_idx, row in enumerate(wsx.iter_rows(min_row=2, values_only=True), start=2):
+                if not row:
+                    continue
+
+                # garante que a tupla tenha pelo menos 6 elementos
+                row = tuple(row) + (None,) * max(0, 6 - len(row))
+                cell_id = row[0]
+
+                # se a célula de ID for None, pula
+                if cell_id is None:
+                    continue
+
                 if cell_id == id_rem:
-                    tipo = cells[1].value; categoria = cells[2].value; valor = cells[3].value; data = cells[4].value; desc = cells[5].value
-                    print(f"Encontrado na planilha {wsx.title}: ID {cell_id} | {tipo} | {categoria} | {valor} | {data} | {desc}")
+                    tipo, categoria, valor, data, desc = row[1], row[2], row[3], row[4], row[5]
+                    print(
+                        f"Encontrado na planilha {wsx.title}: ID {cell_id} | {tipo} | {categoria} | {valor} | {data} | {desc}")
                     confirma = input("Confirmar remoção? (s/n): ").strip().lower()
                     if confirma == 's':
                         wsx.delete_rows(row_idx, 1)
@@ -135,14 +180,15 @@ def transacoes(n, ws, wb):
                     else:
                         print("Remoção cancelada.")
                         return None
+        # Caso tenha escolhido um ID que nao existe
         print("ID não encontrado.")
         return None
 
-#======================== Encerrar ===========================
+    #======================== Encerrar ===========================
     elif n == 0:
         print("Encerrando...")
         return "quebra"
 
-    # outras opções: retorno imediato (evita loops)
+    #outras opções: retorna e ua vez para evitar loop
     else:
         return None
