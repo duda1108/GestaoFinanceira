@@ -1,10 +1,47 @@
 from openpyxl import Workbook
 from GestaoFinanceira.Transacoes import transacoes
 from GestaoFinanceira.ListarTransacoes import vizualizar
+import os
+from openpyxl import Workbook, load_workbook
+#guardará os cadastros
+import json
+import hashlib
 
-usuarios = {}  # dicionário em memória: {nome: senha}
+#====================== Criaçao de cadastro, e verificaçao de Login =========================
+#============================================================================================
+USERS_FILE = "users.json"
+
+#--------------tranforma qualquer texto em uma sequencia fixa de caracteres-----------------
+def _hash_password(senha: str) -> str:
+    return hashlib.sha256(senha.encode("utf-8")).hexdigest()
 
 
+#-----------verifica os user no json e verifica se existe --------------
+def load_users(filename=USERS_FILE):
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # data vai ser tipo: {usuario: hashed_password}
+            return data if isinstance(data, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        print("Error ao carregar usuario no .json:", e)
+        return {}
+
+#-----------------salva novos usuarios do json------------------
+def save_users(usuarios, filename=USERS_FILE):
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Erro ao salvar usuario no .json:", e)
+
+usuarios = load_users()
+
+
+#=======================CADASTRO==========================
+#=========================================================
 def cadastrar_usuario():
     print("--------- CADASTRO ---------")
     nome = input("Digite um nome de usuário: ").strip()
@@ -20,29 +57,41 @@ def cadastrar_usuario():
         print("Senha não pode ser vazia.")
         return
 
-    usuarios[nome] = senha
-    print(f"Usuário '{nome}' cadastrado com sucesso!")
+    #--------- armazena a senha "hash" no pc --------------
+    usuarios[nome] = _hash_password(senha)
+    try:
+        save_users(usuarios)
+        print(f"Usuário '{nome}' cadastrado com sucesso!")
+    except Exception as e:
+        print("Erro ao salvar usuário:", e)
 
 
+
+#=====================LOGIN======================
+#================================================
 def fazer_login():
     print("\n--------- LOGIN ---------")
     nome = input("Usuário: ").strip()
     senha = input("Senha: ").strip()
 
-    if nome in usuarios and usuarios[nome] == senha:
+    #hash password é para guardar a senha
+    if nome in usuarios and usuarios[nome] == _hash_password(senha):
         print(f"Login bem-sucedido! Bem-vindo, {nome}.")
         return nome
     else:
         print("Usuário ou senha inválidos.")
         return None
 
-import os
-from openpyxl import Workbook, load_workbook
+
+
+#=======================CRIAÇÃO PLANILHA=======================
+#=============================================================
 
 FILENAME = "Gestao_Financeira.xlsx"
-
 def criar_planilha(filename=FILENAME):
 
+#-----------Verficação se planilha ja existe, para que--------------------
+#---------nao crie outra e sobreponha á uma ja existente------------------
     if os.path.exists(filename):
         wb = load_workbook(filename)
         ws = wb.active
@@ -57,7 +106,6 @@ def criar_planilha(filename=FILENAME):
     for m in meses:
         wb.create_sheet(m)
 
-    # Cabeçalho: incluiu "ID" para manter compatibilidade com (tid, tipo, cat, valor, data, desc)
     for sheet in wb.worksheets:
         sheet.append(["ID", "Tipo", "Categoria", "Valor", "Data", "Descrição"])
 
@@ -65,70 +113,170 @@ def criar_planilha(filename=FILENAME):
     return wb, ws
 
 
-def menu_inicial():
-    while True:
-        print("\n================= MENU INICIAL =================")
-        print("1 - Cadastrar novo usuário")
-        print("2 - Login")
-        print("0 - Sair")
 
-        escolha = input("Escolha uma opção: ").strip()
+#================================MENU INICIAL==================================
+#==================================TKINTER=====================================
+import tkinter as tk
+from tkinter import messagebox
+import sys
+import builtins
+from tkinter import simpledialog
 
-        if escolha == "1":
-            cadastrar_usuario()
 
-        elif escolha == "2":
-            usuario_logado = fazer_login()
-            if usuario_logado is not None:
-                wb, ws = criar_planilha(FILENAME)
+#Interface inicial
+janela = tk.Tk()
+janela.title("Gestão Financeira")
+janela.geometry("400x300")
 
-                # Loop do menu financeiro (após login)
-                while True:
-                    print("\n================= MENU PRINCIPAL =================")
-                    print("Bem vindo à sua gestão financeira! Selecione o que deseja:")
-                    print(" 1- Adicionar transação")
-                    print(" 2- Remover transação")
-                    print(" 3- Listar Transação por categoria")
-                    print(" 4- Listar Transação por período")
-                    print(" 5- Vizualizar o saldo")
-                    print(" 0- Encerrar")
+#--------------------------------Seções de menu, login e cadastro--------------------------------------
+frame_menu = tk.Frame(janela)
+frame_login = tk.Frame(janela)
+frame_cadastro = tk.Frame(janela)
+frame_principal = tk.Frame(janela)
+for f in (frame_menu, frame_login, frame_cadastro, frame_principal):
+    f.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-                    escolha_n = input("Escolha a opção que deseja: ").strip()
-                    try:
-                        n = int(escolha_n)
-                    except ValueError:
-                        print("Opção inválida. Digite um número.")
-                        continue
+def mostrar(frame):
+    frame.tkraise()
 
-                    # chama transacoes (que lida com adicionar/remover etc)
-                    resultado = transacoes(n, ws, wb)
 
-                    # chama vizualizar apenas para opções que exibem (3,4,5)
-                    resultado1 = None
-                    if n in (3, 4, 5):
-                        resultado1 = vizualizar(n, ws, wb)
+tk.Label(frame_menu, text="MENU INICIAL", font=("Arial",14)).pack(pady=10)
+#Botões pra adicionar ao menu de login
+tk.Button(frame_menu, text="Cadastrar usuário", width=20, command=lambda: mostrar(frame_cadastro)).pack(pady=5)
+tk.Button(frame_menu, text="Login", width=20, command=lambda: mostrar(frame_login)).pack(pady=5)
+tk.Button(frame_menu, text="Sair", width=20, command=janela.destroy).pack(pady=5)
 
-                    # salvar a cada alteração/iteração (opcional mas seguro)
-                    try:
-                        wb.save(FILENAME)
-                    except Exception as e:
-                        print("Aviso: não foi possível salvar o arquivo:", e)
 
-                    # condições de quebra/retorno esperadas pela sua lógica
-                    if resultado == "quebra" or resultado1 == "quebra":
-                        # pode querer fazer um logout (voltar ao menu inicial)
-                        print("Encerrando sessão do usuário.")
-                        break
+#-------------------------------------- CADASTRO ------------------------------------------
+tk.Label(frame_cadastro, text="Cadastro", font=("Arial",14)).pack(pady=10)
+cad_nome = tk.Entry(frame_cadastro); cad_senha = tk.Entry(frame_cadastro, show="*")
+cad_nome.pack(pady=5); cad_senha.pack(pady=5)
+def cadastrar_ui():
+    nome = cad_nome.get().strip(); senha = cad_senha.get().strip()
+    if not nome or not senha:
+        messagebox.showerror("Erro","Preencha todos os campos antes, tente novamente"); return
+    if nome in usuarios:
+        messagebox.showerror("Erro","Usuário já existe, escolha outro."); return
+    usuarios[nome] = _hash_password(senha); save_users(usuarios)
+    messagebox.showinfo("Sucesso","Cadastro realizado com sucesso"); mostrar(frame_menu)
+tk.Button(frame_cadastro, text="Cadastrar", command=cadastrar_ui).pack(pady=5)
+tk.Button(frame_cadastro, text="Voltar", command=lambda: mostrar(frame_menu)).pack()
 
-                    if n == 0:
-                        print("Encerrando sessão do usuário.")
-                        break
 
-                # após logout do usuário, volta ao menu inicial (não encerra o programa)
-        elif escolha == "0":
-            print("Encerrando programa. Até mais!")
-            break
+#---------------------------------------- LOGIN -------------------------------------------------
+tk.Label(frame_login, text="Login", font=("Arial",14)).pack(pady=10)
+login_nome = tk.Entry(frame_login); login_senha = tk.Entry(frame_login, show="*")
+login_nome.pack(pady=5); login_senha.pack(pady=5)
+usuario_logado = None
+
+#Função para buscar o login
+def login_ui():
+    global usuario_logado
+    nome = login_nome.get().strip(); senha = login_senha.get().strip()
+    if nome in usuarios and usuarios[nome] == _hash_password(senha):
+        usuario_logado = nome
+        messagebox.showinfo("Sucesso", f"Bem-vindo, {nome}!")
+        mostrar(frame_principal)
+    else:
+        messagebox.showerror("Erro","Usuário ou senha inválidos.")
+tk.Button(frame_login, text="Entrar", command=login_ui).pack(pady=5)
+tk.Button(frame_login, text="Voltar", command=lambda: mostrar(frame_menu)).pack()
+
+#Interface da Gestao Financeira
+tk.Label(frame_principal, text="Menu Financeiro", font=("Arial",14)).pack(pady=10)
+wb, ws = criar_planilha(FILENAME)
+
+#Função para executar ações apos a escolha de um dos numeros do menu da gestao finaceira
+def executar(op):
+
+    #Criará uma janela apos a escolha da ação, para preencher com os dados necessarios
+    out_win = tk.Toplevel(janela)
+    out_win.title("Saída / Interação")
+    out_win.geometry("600x400")
+
+    txt = tk.Text(out_win, wrap="word")
+    txt.pack(expand=True, fill="both")
+
+    #Botoes para limpar o texto ou fechas as janelas
+    btn_frame = tk.Frame(out_win)
+    btn_frame.pack(fill="x", pady=4)
+    tk.Button(btn_frame, text="Limpar", command=lambda: txt.delete("1.0", "end")).pack(side="left", padx=6)
+    tk.Button(btn_frame, text="Fechar", command=out_win.destroy).pack(side="right", padx=6)
+
+    #Peça Chave do tkinter
+    #TUDO o que sera printado no terminal, agora cai no tkinter
+    def insira_o_texto(s):
+        try:
+            txt.insert("end", s)  #escreve em formato string
+            txt.see("end")              #rola a janela para mostrar o final
+            out_win.update_idletasks()  #mantem a janela enquanto escreve
+        except Exception:
+            pass
+
+    #Função que "engana" o tkinter, para que tudo que voce escreva no tkinter, ele envia pela função "insira o texto"
+    class _StdRedirect:
+        def write(self, s):
+            insira_o_texto(s)
+        def flush(self):
+            pass
+
+    #Salva valores originais antes e redirecionar
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    old_input = builtins.input
+
+    #Qualquer print vira "insir_o_texto"
+    sys.stdout = _StdRedirect()
+    sys.stderr = _StdRedirect()
+
+    #Toda vez que o codigo pede algum input, aparecerá na janela, de forma bonita
+    def input_consumidor(prompt=""):
+        # mostra diálogo para o usuário digitar
+        res = simpledialog.askstring("Entrada", prompt or "Digite:", parent=out_win)
+        return "" if res is None else res
+
+    builtins.input = input_consumidor
+
+    # garantir que a janela apareça
+    out_win.update()
+    out_win.lift()
+    out_win.focus_force()
+
+    try:
+        # executar a operação
+        if op in (3, 4, 5):
+            vizualizar(op, ws, wb)
         else:
-            print("Opção inválida. Tente novamente.")
+            transacoes(op, ws, wb)
 
-menu_inicial()
+        try:
+            wb.save(FILENAME)
+        except Exception as e:
+            #Caso nao consiga salvar, mostre mensagem curta e registre no Text
+            insira_o_texto(f"\nErro ao salvar planilha: {e}\n")
+            messagebox.showwarning("Aviso", "Não foi possível salvar a planilha.")
+    except Exception as e:
+        # mostrar erro curto ao usuário e log completo no Text
+        import traceback
+        tb = traceback.format_exc()
+        insira_o_texto("\n=== Ocorreu um erro ===\n")
+        insira_o_texto(tb + "\n")
+        messagebox.showerror("Erro", f"Ocorreu um erro: {e}\nVeja na janela para mais detalhes.")
+    finally:
+        #Salva valores originais antes e redirecionar denovo
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        builtins.input = old_input
+
+    wb.save(FILENAME)
+
+#Menu com as opçoes de ações existentes
+ops = [("1 - Adicionar transação",1),("2 - Remover transação",2),
+       ("3 - Listar transações por categoria",3),("4 - Listar transações por período",4),
+       ("5 - Saldo acumulado ao longo do tempo",5), ("6 - Saldo do periodo",6), ("0 - Encerrar sessão",0)]
+for txt, cod in ops:
+    tk.Button(frame_principal, text=txt, command=lambda c=cod: executar(c)).pack(pady=2)
+tk.Button(frame_principal, text="Logout", command=lambda: mostrar(frame_menu)).pack(pady=10)
+
+mostrar(frame_menu)
+janela.mainloop()
