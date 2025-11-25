@@ -1,9 +1,11 @@
 # GestaoFinanceira/ListarTransacoes.py
-
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
+
 
 def vizualizar(n, ws, wb):
-    print(f"DEBUG vizualizar chamado com n={n!r}, type={type(n)}")
+    #print(f"DEBUG vizualizar chamado com n={n!r}, type={type(n)}")
 #========================== Listar por categoria ============================
     if n == 3:
         print("\n========== Transações por categoria ==========\n")
@@ -47,10 +49,11 @@ def vizualizar(n, ws, wb):
 
         # Agora imprime tudo de forma separada por categoria
         if not categorias:
+            logger.info("Listagem por categoria: nenhuma transação encontrada")
             print("Nenhuma transação encontrada.")
             return None
-
         for cat in categorias:
+            logger.info("Listagem por categoria concluída: categorias=%s", list(categorias.keys()))
             print(f"\n--- categoria: {cat} ---")
             for linha in categorias[cat]:
                 print(linha)
@@ -124,7 +127,9 @@ def vizualizar(n, ws, wb):
                     print(f"[{wsx.title}] ID:{tid} | {tipo} | {cat} | R${valor} | {data} | {desc}")
 
         if not achou:
+            logger.info("Listagem por período: nenhuma transação encontrada entre %s e %s", d1, d2)
             print("Nenhuma transação encontrada neste periodo.")
+
 
         return None
 #============================== Transações ao longo do tempo =================================
@@ -218,7 +223,7 @@ def vizualizar(n, ws, wb):
         try:
             d1p = datetime.strptime(d1, "%d/%m/%Y")
             d2p = datetime.strptime(d2, "%d/%m/%Y")
-        except:
+        except ValueError:
             print("Datas inválidas! Use o formato DD/MM/AAAA.")
             return None
 
@@ -230,23 +235,41 @@ def vizualizar(n, ws, wb):
                 if not row:
                     continue
 
-                #Prevenção contra linhas vazias
+                # Prevenção contra linhas vazias
                 row = tuple(row) + (None,) * max(0, 6 - len(row))
                 tid, tipo, cat, valor, data, desc = row
 
+                # valida data antes de tentar converter
+                if not data:
+                    continue
                 try:
-                    data_convertida = datetime.strptime(data, "%d/%m/%Y")
-                except:
+                    data_convertida = datetime.strptime(str(data), "%d/%m/%Y")
+                except (ValueError, TypeError):
                     continue
 
+                # dentro do intervalo
                 if d1p <= data_convertida <= d2p:
-                    if tipo == "Entrada":
-                        total_entradas += valor
-                    elif tipo == "Saída":
-                        total_saidas += valor
+
+                    # normaliza tipo
+                    tipo_norm = (tipo or "").strip().lower()
+
+                    # valida valor antes de somar
+                    try:
+                        if isinstance(valor, str):
+                            valor_num = float(valor.replace(",", ".").strip())
+                        else:
+                            valor_num = float(valor)
+                    except:
+                        continue
+
+                    if tipo_norm == "entrada":
+                        total_entradas += valor_num
+                    elif tipo_norm in ("saída", "saida"):
+                        total_saidas += valor_num
 
         saldo = total_entradas - total_saidas
-
+        logger.info("Saldo por período calculado: d1=%s d2=%s entradas=%s saidas=%s saldo=%s",
+                    d1, d2, total_entradas, total_saidas, saldo)
         print("\n========== SALDO DO PERÍODO ==========")
         print(f"Entradas: R${total_entradas}")
         print(f"Saídas: R${total_saidas}")
