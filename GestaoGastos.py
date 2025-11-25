@@ -6,6 +6,24 @@ from openpyxl import Workbook, load_workbook
 #guardará os cadastros
 import json
 import hashlib
+import logging
+from logging.handlers import RotatingFileHandler
+
+#================================== Logging básico ===========================================
+LOGFILE = "gestao_financeira.log"
+logger = logging.getLogger()             # logger raiz
+logger.setLevel(logging.DEBUG)
+
+fh = RotatingFileHandler(LOGFILE, maxBytes=10*1024*1024, backupCount=3, encoding="utf-8")
+fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+fh.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler()
+ch.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+ch.setLevel(logging.INFO)
+
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 #====================== Criaçao de cadastro, e verificaçao de Login =========================
 #============================================================================================
@@ -175,10 +193,11 @@ def login_ui():
     nome = login_nome.get().strip(); senha = login_senha.get().strip()
     if nome in usuarios and usuarios[nome] == _hash_password(senha):
         usuario_logado = nome
+        logger.info("Sessão iniciada: usuario=%s", nome)
         messagebox.showinfo("Sucesso", f"Bem-vindo, {nome}!")
         mostrar(frame_principal)
     else:
-        messagebox.showerror("Erro","Usuário ou senha inválidos.")
+        messagebox.showerror("Erro", "Usuário ou senha inválidos.")
 tk.Button(frame_login, text="Entrar", command=login_ui).pack(pady=5)
 tk.Button(frame_login, text="Voltar", command=lambda: mostrar(frame_menu)).pack()
 
@@ -244,7 +263,7 @@ def executar(op):
 
     try:
         # executar a operação
-        if op in (3, 4, 5):
+        if op in (3, 4, 5, 6):
             vizualizar(op, ws, wb)
         else:
             transacoes(op, ws, wb)
@@ -276,7 +295,10 @@ ops = [("1 - Adicionar transação",1),("2 - Remover transação",2),
        ("5 - Saldo acumulado ao longo do tempo",5), ("6 - Saldo do periodo",6), ("0 - Encerrar sessão",0)]
 for txt, cod in ops:
     tk.Button(frame_principal, text=txt, command=lambda c=cod: executar(c)).pack(pady=2)
-tk.Button(frame_principal, text="Logout", command=lambda: mostrar(frame_menu)).pack(pady=10)
+tk.Button(frame_principal, text="Logout",
+          command=lambda: (logger.info("Sessão encerrada: usuario=%s", usuario_logado), mostrar(frame_menu))
+         ).pack(pady=10)
+
 
 mostrar(frame_menu)
 janela.mainloop()
