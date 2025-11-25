@@ -2,6 +2,11 @@
 from openpyxl import load_workbook
 import os
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
+import logging
+logger = logging.getLogger(__name__)
+
 
 FNAME = "Gestao_Financeira.xlsx"
 MESES = ["Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
@@ -28,7 +33,7 @@ def ID(wb):
 
 #================================= Transasções =================================
 def transacoes(n, ws, wb):
-    print(f"[DEBUG] transacoes() chamado com n={n}")
+    #print(f"[DEBUG] transacoes() chamado com n={n}")
 
     #-------------------------- ADICIONAR -----------------------------
     if n == 1:
@@ -112,6 +117,8 @@ def transacoes(n, ws, wb):
         tid = ID(wb)
         ws_target.append([tid, tipo, categoria, valor, data_str, descricao])
         wb.save(FNAME)
+        logger.info("Transação adicionada: id=%s, tipo=%s, categoria=%s, valor=%s, planilha=%s",
+                    tid, tipo, categoria, valor, ws_target.title)
         print(f"Transação adicionada com ID {tid} na planilha {ws_target.title}.")
         return None
 
@@ -175,12 +182,14 @@ def transacoes(n, ws, wb):
                     if confirma == 's':
                         wsx.delete_rows(row_idx, 1)
                         wb.save(FNAME)
+                        logger.info("Transação removida: id=%s, planilha=%s", cell_id, wsx.title)
                         print("Transação removida.")
                         return None
                     else:
                         print("Remoção cancelada.")
                         return None
         # Caso tenha escolhido um ID que nao existe
+        logger.warning("Tentativa de remoção falhou: ID não encontrado = %s", id_rem)
         print("ID não encontrado.")
         return None
 
